@@ -12,6 +12,12 @@
 *.map
 *.exp
 
+# ===== 可执行文件（无后缀）=====
+main
+server
+client
+app
+
 # Precompiled Headers
 *.gch
 *.pch
