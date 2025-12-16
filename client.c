@@ -56,7 +56,7 @@ int main(){
     while (1){
         printf("Enter: ");
         fgets(msg.data, MAX_MSG_LEN, stdin);
-        if(strncmp(msg.data, "exit", 4) == 0){
+        if(strcmp(msg.data, "exit\n") == 0){
             msg.type = MSG_TYPE_LOGOUT;
             send(sockfd, &msg, sizeof(msg), 0);
             receive_message(sockfd);

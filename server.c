@@ -7,13 +7,14 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/epoll.h>
+#include <fcntl.h>
 
 #include "proto.h"
 
 #define MAX_EPOLL_EVENTS 1024
 
 static void process_message(const message_st *msg, const int connfd);
-static void echo_message(const message_st *msg, const int connfd);
+static void echo_message(const message_st *msg, const int connfd, const int epfd);
 
 int main(){
 
@@ -74,6 +75,10 @@ int main(){
                     perror("accept error");
                     continue;
                 }
+                // Set non-blocking mode
+                int flags = fcntl(connfd, F_GETFL);
+                fcntl(connfd, F_SETFL, flags | O_NONBLOCK);
+
                 // Add new socket to epoll
                 ev.events = EPOLLIN;
                 ev.data.fd = connfd;
@@ -99,7 +104,7 @@ int main(){
                     // Process the received message
                     process_message(&msg, connfd);
                     // Echo back the message
-                    echo_message(&msg, connfd);
+                    echo_message(&msg, connfd, epfd);
                 }
             }
         }
@@ -133,12 +138,12 @@ static void process_message(const message_st *msg, const int connfd){
 }
 
 // Echo back the received message
-static void echo_message(const message_st *msg, const int connfd){
+static void echo_message(const message_st *msg, const int connfd, const int epfd){
     message_st echo_msg;
     echo_msg.type = msg->type;
     switch(msg->type){
         case MSG_TYPE_DATA:
-            snprintf(echo_msg.data, MAX_MSG_LEN+29, "Send successfully!\nEcho: %s", msg->data);
+            snprintf(echo_msg.data, MAX_MSG_LEN, "Send successfully!");
             break;
         case MSG_TYPE_LOGIN:
             snprintf(echo_msg.data, MAX_MSG_LEN, "Welcome!");
@@ -153,5 +158,9 @@ static void echo_message(const message_st *msg, const int connfd){
     ssize_t n = send(connfd, &echo_msg, sizeof(echo_msg), 0);
     if (n == -1){
         perror("send error");
+    }
+    if(msg->type == MSG_TYPE_LOGOUT){
+        close(connfd);
+        epoll_ctl(epfd, EPOLL_CTL_DEL, connfd, NULL);
     }
 }
